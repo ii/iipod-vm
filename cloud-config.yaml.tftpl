@@ -1,0 +1,43 @@
+#cloud-config
+ignition:
+  version: "3.4.0"
+passwd:
+  users:
+  - name: fedora
+    passwordHash: bab2148b1c11dce8f56d5b54bddfbe215b1be25f9bf84de266fa685853f221e70f16776dcc480014e793248c121ce4b9b125df5465bec09fc38594e26f84cc11
+    groups: ["sudo", "wheel"]
+    shell: /bin/bash
+storage:
+  files:
+  - path: /opt/coder/init
+    mode: 755
+    contents:
+      source: "data:,${init_script}"
+  - path: /var/run/secrets/.coder-agent-token
+    mode: 600
+    contents:
+      source: "data:,CODER_AGENT_TOKEN=${coder_agent_token}"
+systemd:
+  units:
+  - name: coder-agent.service
+    enabled: true
+    contents: |
+      [Unit]
+      Description=Coder Agent
+      After=network-online.target
+      Wants=network-online.target
+
+      [Service]
+      User=fedora
+      ExecStart=/opt/coder/init
+      EnvironmentFile=/var/run/secrets/.coder-agent-token
+      Restart=always
+      RestartSec=10
+      TimeoutStopSec=90
+      KillMode=process
+
+      OOMScoreAdjust=-900
+      SyslogIdentifier=coder-agent
+
+      [Install]
+      WantedBy=multi-user.target
